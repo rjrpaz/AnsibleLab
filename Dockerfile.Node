@@ -1,0 +1,35 @@
+FROM fedora:latest
+MAINTAINER Roberto Paz <rjrpaz@gmail.com>
+
+# Accept additional proxy as argument for building
+ARG proxy
+RUN if [ "x$proxy" != "x" ] ; then echo Using proxy $proxy ; fi
+
+# Define environment variables
+ENV http_proxy $proxy
+RUN if [ "x$proxy" != "x" ] ; then echo proxy=$proxy >> /etc/yum/proxy.conf ; echo proxy=$proxy >> /etc/dnf/dnf.conf ; fi
+
+# Add SSH server
+RUN dnf -y install openssh-server
+RUN ssh-keygen -A
+
+# Add some utils
+RUN dnf -y install iproute which procps sudo python
+
+# Create group for admin user
+RUN groupadd unix
+RUN echo "%unix   ALL=(ALL:ALL) ALL" >> /etc/sudoers
+
+# Create non-privileged user
+RUN useradd -d /home/admuser -c "Non-privileged user" -g unix admuser
+RUN echo "admuser:admuser" | chpasswd
+
+# Copy ssh public key
+RUN mkdir -p /home/admuser/.ssh && chmod 700 /home/admuser/.ssh
+COPY files/id_rsa.pub /home/admuser/.ssh/authorized_keys
+RUN chmod 600 /home/admuser/.ssh/authorized_keys
+RUN chown -R admuser.unix /home/admuser
+
+RUN dnf clean all
+
+CMD ["/usr/sbin/sshd", "-D"]

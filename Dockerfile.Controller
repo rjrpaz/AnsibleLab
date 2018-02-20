@@ -1,0 +1,27 @@
+FROM fedora:latest
+MAINTAINER Roberto Paz <rjrpaz@gmail.com>
+
+# Accept additional proxy as argument for building
+ARG proxy
+RUN if [ "x$proxy" != "x" ] ; then echo Using proxy $proxy ; fi
+
+# Define environment variables
+ENV http_proxy $proxy
+RUN if [ "x$proxy" != "x" ] ; then echo proxy=$proxy >> /etc/yum/proxy.conf ; echo proxy=$proxy >> /etc/dnf/dnf.conf ; fi
+
+# Add Ansible
+RUN dnf -y install ansible
+
+# Add some utils
+RUN dnf -y install iproute which findutils less openssh-clients iputils
+
+# Copy ssh private key
+RUN mkdir -p /root/.ssh && chmod 700 /root/.ssh
+ADD files/id_rsa /root/.ssh
+RUN chmod 600 /root/.ssh/id_rsa
+
+# Add Ansible configuration files
+ADD ansible /ansible
+ENV ANSIBLE_CONFIG /ansible/ansible.cfg
+
+RUN dnf clean all
